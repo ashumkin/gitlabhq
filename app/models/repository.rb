@@ -756,6 +756,9 @@ class Repository
     previous_path = options.delete(:previous_path)
     action = previous_path && previous_path != path ? :move : :update
 
+    encoding = attributes(path)["encoding"]
+    content.encode!(encoding, "utf-8") if encoding
+
     options[:actions] = [{ action: action, file_path: path, previous_path: previous_path, content: content }]
 
     multi_action(user, **options)

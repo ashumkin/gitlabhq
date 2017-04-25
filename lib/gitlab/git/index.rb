@@ -133,6 +133,8 @@ module Gitlab
 
         content = Base64.decode64(content) if options[:encoding] == 'base64'
 
+        encoding = repository.attributes(options[:file_path])["encoding"]
+        content.encode!(encoding, "utf-8") if encoding
         detect = CharlockHolmes::EncodingDetector.new.detect(content)
         unless detect && detect[:type] == :binary
           # When writing to the repo directly as we are doing here,

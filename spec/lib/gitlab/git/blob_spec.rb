@@ -353,13 +353,25 @@ describe Gitlab::Git::Blob, seed_helper: true do
     end
 
     context 'file with ISO-8859 text' do
-      let(:blob) { Gitlab::Git::Blob.find(repository, SeedRepo::LastCommit::ID, "encoding/iso8859.txt") }
+      let(:repository) { create(:project, :repository).repository }
+      let(:blob) do
+        # copy_gitattributes(ref) is only needed because
+        # .gitattributes file is currently parsed from
+        # info/attributes file that is created by this method
+        # attribute parser could use the requested tree instead
+        # see https://gitlab.com/gitlab-org/gitlab-ce/issues/20085
+        repository.copy_gitattributes("50995b5def6012680554dac82f2449524b2d21c3")
+
+        Gitlab::Git::Blob.find(repository, "50995b5def6012680554dac82f2449524b2d21c3", "encoding/iso8859.txt")
+      end
 
       it { expect(blob.name).to eq("iso8859.txt") }
-      it { expect(blob.loaded_size).to eq(4) }
-      it { expect(blob.size).to eq(4) }
+      it { expect(blob.loaded_size).to eq(3) }
+      it { expect(blob.size).to eq(3) }
       it { expect(blob.mode).to eq("100644") }
       it { expect(blob.truncated?).to be_falsey }
+      it { expect(blob.attributes["encoding"]).to eq("iso-8859-1") }
+      it { expect(blob.data).to eq("Äü\n") }
     end
   end
 

@@ -149,7 +149,7 @@ module BlobHelper
   # execute untrusted data.
   def safe_content_type(blob)
     if blob.text?
-      'text/plain; charset=utf-8'
+      "text/plain; charset=#{blob.attributes.fetch('encoding', 'utf-8')}"
     elsif blob.image?
       blob.content_type
     else

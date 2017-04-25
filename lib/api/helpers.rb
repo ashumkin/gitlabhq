@@ -469,7 +469,7 @@ module API
 
     def send_git_blob(repository, blob)
       env['api.format'] = :txt
-      content_type 'text/plain'
+      content_type "text/plain; charset=#{blob.attributes.fetch('encoding', 'utf-8')}"
       header(*Gitlab::Workhorse.send_git_blob(repository, blob))
     end
 

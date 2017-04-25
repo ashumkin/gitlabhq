@@ -18,6 +18,41 @@ describe Projects::RawController do
       end
     end
 
+    context "regular filename" do
+      let(:id) { "custom-encoding-gitattributes/encoding/iso8859.txt" }
+
+      before do
+        # copy_gitattributes(ref) is only needed because
+        # .gitattributes file is currently parsed from
+        # info/attributes file that is created by this method
+        # attribute parser could use the requested tree instead
+        # see https://gitlab.com/gitlab-org/gitlab-ce/issues/20085
+        public_project.repository.copy_gitattributes("50995b5def6012680554dac82f2449524b2d21c3")
+      end
+
+      shared_examples "uses custom encoding" do
+        it "uses custom encoding" do
+          get(:show,
+              namespace_id: public_project.namespace.to_param,
+              project_id: public_project.to_param,
+              id: id)
+
+          expect(response).to have_http_status(200)
+          expect(response.header['Content-Type']).to eq("text/plain; charset=iso-8859-1")
+          # expect(response.body).to eq("\xC4\xFC")
+        end
+      end
+
+      context "when project_raw_show Gitaly feature is enabled" do
+        it_behaves_like "uses custom encoding"
+      end
+
+      context "when project_raw_show Gitaly feature is disabled", :skip_gitaly_mock do
+        it_behaves_like "uses custom encoding"
+      end
+
+    end
+
     context 'image header' do
       let(:id) { 'master/files/images/6049019_460s.jpg' }
 

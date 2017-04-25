@@ -18,7 +18,7 @@ module Gitlab
       LFS_POINTER_MIN_SIZE = 120.bytes
       LFS_POINTER_MAX_SIZE = 200.bytes
 
-      attr_accessor :name, :path, :size, :data, :mode, :id, :commit_id, :loaded_size, :binary
+      attr_accessor :name, :path, :size, :data, :mode, :id, :commit_id, :loaded_size, :binary, :attributes
 
       class << self
         def find(repository, sha, path, limit: MAX_DATA_DISPLAY_SIZE)
@@ -45,7 +45,7 @@ module Gitlab
             new(id: entry.oid, name: name, size: 0, data: '', path: path, commit_id: sha)
           when :BLOB
             new(id: entry.oid, name: name, size: entry.size, data: entry.data.dup, mode: entry.mode.to_s(8),
-                path: path, commit_id: sha, binary: binary?(entry.data))
+                path: path, commit_id: sha, binary: binary?(entry.data), attributes: repository.attributes(path))
           end
         end
 
@@ -62,7 +62,9 @@ module Gitlab
         # to the caller to limit the number of blobs and blob_size_limit.
         #
         def batch(repository, blob_references, blob_size_limit: MAX_DATA_DISPLAY_SIZE)
-          repository.gitaly_blob_client.get_blobs(blob_references, blob_size_limit).to_a
+          repository.gitaly_blob_client.get_blobs(blob_references, blob_size_limit).to_a.map do |blob|
+            blob.apply_attributes_from_repository(repository)
+          end
         end
 
         # Returns an array of Blob instances just with the metadata, that means
@@ -90,13 +92,15 @@ module Gitlab
       end
 
       def initialize(options)
-        %w(id name path size data mode commit_id binary).each do |key|
+        %w(id name path size data mode commit_id binary attributes).each do |key|
           self.__send__("#{key}=", options[key.to_sym]) # rubocop:disable GitlabSecurity/PublicSend
+          @attributes ||= {}
         end
 
         # Retain the actual size before it is encoded
         @loaded_size = @data.bytesize if @data
         @loaded_all_data = @loaded_size == size
+        apply_attributes_to_data
       end
 
       def binary?
@@ -105,6 +109,17 @@ module Gitlab
 
       def data
         encode! @data
+      end
+
+      def apply_attributes_from_repository(repository)
+        @attributes = repository.attributes(path)
+        apply_attributes_to_data
+      end
+
+      def apply_attributes_to_data
+        encoding = attributes["encoding"]
+        @data.encode!('utf-8', encoding) if encoding
+        self
       end
 
       # Load all blob data (not just the first MAX_DATA_DISPLAY_SIZE bytes) into
@@ -120,6 +135,7 @@ module Gitlab
 
         @data = repository.gitaly_blob_client.get_blob(oid: id, limit: -1).data
         @loaded_all_data = true
+        apply_attributes_to_data
         @loaded_size = @data.bytesize
       end
 
