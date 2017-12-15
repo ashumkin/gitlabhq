@@ -86,6 +86,15 @@ module Gitlab
 
       message = message.dup if message.respond_to?(:frozen?) && message.frozen?
 
+      if message.encoding != Encoding::UTF_8 && message.valid_encoding?
+        begin
+          message.encode!('UTF-8') # the second arg should be default to message.encoding
+        rescue EncodingError
+        else
+          return message
+        end
+      end
+
       message.force_encoding("UTF-8")
     end
 

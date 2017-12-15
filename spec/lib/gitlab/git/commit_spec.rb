@@ -138,6 +138,19 @@ describe Gitlab::Git::Commit, seed_helper: true do
         expect(described_class.find(repository, 'v1.0.0').id).to eq('6f6d7e7ed97bb5f0054f2b1df789b39ca89b6ff9')
       end
 
+      xcontext "with non-UTF-8 encoding of a commit message" do
+        let(:repository) { create(:project, :repository).repository }
+        let(:commit) { described_class.find(repository, 'commit-encoding-windows-1251') }
+
+        it do
+          expect(commit.safe_message).to eq("This is a commit in Windows-1251 encoding. Коммит сделан с текстом в кодировке Windows-1251
+
+Multiline commit message text.
+Многострочный текст сообщения коммита.
+")
+        end
+      end
+
       it "should return nil for non-commit ids" do
         blob = Gitlab::Git::Blob.find(repository, SeedRepo::Commit::ID, "files/ruby/popen.rb")
         expect(described_class.find(repository, blob.id)).to be_nil
